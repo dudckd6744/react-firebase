@@ -5,6 +5,8 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import Form from "react-bootstrap/Form"
 import { connect } from "react-redux";
+import firebase from "../../../firebase";
+import {setCurrentChatRoom} from "../../../redux/actions/chatRoom_action";
 
 
 export class ChatRooms extends Component {
@@ -12,8 +14,39 @@ export class ChatRooms extends Component {
     state = {
         show:false,
         name :"",
-        description:""
+        description:"",
+        chatRoomsRef: firebase.database().ref("chatRooms"),
+        chatRooms: [],
+        firstLoad:true,
+        activeChatRoomId: ""
+    }
 
+    componentDidMount(){
+        this.AddChatRoomListeners();
+
+    }
+
+    componentWillUnmount(){
+        this.state.chatRoomsRef.off();
+    }
+
+    setFirstChatRoom = ()=> {
+        const firstChatRoom =  this.state.chatRooms[0]
+        if(this.state.firstLoad && this.state.chatRooms.length > 0){
+            this.props.dispatch(setCurrentChatRoom(firstChatRoom))
+            this.setState({activeChatRoomId: firstChatRoom.id})
+        }
+        this.setState({firstLoad:false})
+    }
+
+    AddChatRoomListeners =()=>{
+        let chatRoomsArray= [];
+
+        this.state.chatRoomsRef.on("child_added", DataSnapshot=>{
+            chatRoomsArray.push(DataSnapshot.val());
+            this.setState({chatRooms:chatRoomsArray},
+                ()=> this.setFirstChatRoom())
+        })
     }
 
 
@@ -21,7 +54,7 @@ export class ChatRooms extends Component {
     handleShow = () => this.setState({show:true});
 
     handleSubmit =(e)=>{
-        e.prevnetDefault();
+        e.preventDefault();
 
         const { name, description} = this.state;
 
@@ -29,17 +62,54 @@ export class ChatRooms extends Component {
             this.addChatRoom();
         }
     }
-    addChatRoom =()=>{
+    addChatRoom = async ()=>{
 
+        const key = this.state.chatRoomsRef.push().key;
         const { name, description } = this.state;
         const { user } = this.props
+        const newChatRoom = {
+            id: key ,
+            name: name,
+            description: description,
+            createdBy: {
+                name: user.displayName,
+                image: user.photoURL
+            }
+        }
 
+        try {
+            await this.state.chatRoomsRef.child(key).update(newChatRoom)
+            this.setState({
+                name: "",
+                description:"",
+                show:false
+            })
+        }catch(error){
+            alert(error)
+        }
 
     }
 
     isFormValid = (name,description) => 
         name && description;
 
+    changeChatRoom =(room)=>{
+        this.props.dispatch(setCurrentChatRoom(room))
+        this.setState({activeChatRoomId:room.id})
+    }
+
+    renderChatRooms = (chatRooms) =>
+    chatRooms.length > 0 &&
+    chatRooms.map((room, i)=>(
+        <li
+        style={{ backgroundColor: room.id === this.state.activeChatRoomId &&
+                                    "#ffffff45"
+        }}
+        onClick={()=>this.changeChatRoom(room)}
+        key={i}>
+            # {room.name}
+        </li>
+    ))
 
     render() {
         return (
@@ -57,6 +127,10 @@ export class ChatRooms extends Component {
                 }}/>
 
                 </div>
+                <ul style={{ listStyleType:"none", padding:0}}>
+                    {this.renderChatRooms(this.state.chatRooms)}
+
+                </ul>
 
                 {/* /add chat room modal */}
                 
@@ -70,12 +144,16 @@ export class ChatRooms extends Component {
                     <Form onSubmit={this.handleSubmit}>
                     <Form.Group controlId="formBasicEmail">
                         <Form.Label>방 이름</Form.Label>
-                        <Form.Control type="text" placeholder="Enter a chat room name" />
+                        <Form.Control
+                        onChange={(e)=> this.setState({name:e.target.value})}
+                        type="text" placeholder="Enter a chat room name" />
                     </Form.Group>
 
                     <Form.Group controlId="formBasicPassword">
                         <Form.Label>방 설명</Form.Label>
-                        <Form.Control type="text" placeholder="Enter a chat room description" />
+                        <Form.Control 
+                        onChange={(e)=> this.setState({description:e.target.value})}
+                        type="text" placeholder="Enter a chat room description" />
                     </Form.Group>
                     </Form>
                         
