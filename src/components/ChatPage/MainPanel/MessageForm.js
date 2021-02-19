@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import Form from "react-bootstrap/Form"
 import ProgressBar from "react-bootstrap/ProgressBar"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
 import firebase from "../../../firebase";
 import { useSelector } from 'react-redux'
+import mime from "mime-types";
 
 
 function MessageForm() {
@@ -12,9 +13,12 @@ function MessageForm() {
     const [content, setcontent] = useState("")
     const [errors, seterrors] = useState([])
     const [loading, setloading] = useState(false)
+    const [percentage, setpercentage] = useState(0)
     const messagesRef = firebase.database().ref("messages")
     const chatRoom = useSelector(state => state.chatRoom.currentChatRoom)
     const user = useSelector(state => state.user.currentUser)
+    const inputOpenImageRef = useRef();
+    const storageRef = firebase.storage().ref();
 
     const handleChange =(e) => {
         setcontent(e.target.value)
@@ -60,6 +64,47 @@ function MessageForm() {
         }
     }
 
+    const handleOpenImgaeRef =()=>{
+        inputOpenImageRef.current.click()
+    }
+    const handleUploadImage = async (e)=>{
+        const file = e.target.files[0];
+
+        const filePath = `/message/public/${file.name}`;
+        const metadata = { contentType: mime.lookup(file.name)}
+        setloading(true)
+        try {
+            //ㅠ파일 스토리지에 저장 
+            let uploadTask =  storageRef.child(filePath).put(file, metadata)
+
+            //파일 저장되는 퍼센테이지 구하기
+            uploadTask.on("state_changed", 
+                UploadTaskSnapshot => {
+                    const percentage = Math.round(
+                        (UploadTaskSnapshot.bytesTransferred / UploadTaskSnapshot.totalBytes)*100
+                    )
+                    console.log(percentage)
+                    setpercentage(percentage) 
+            },
+            err => {
+                console.error(err);
+                setloading(false)
+            },
+            ()=> {
+                    //저장이 다된후에 파일 메세지전송(db에저장)
+                    //저장된 파일을 다운 받을수있는 URL 가져오기
+                    uploadTask.snapshot.ref.getDownloadURL()
+                    .then(downloadURL =>{
+                        messagesRef.child(chatRoom.id).push().set(createMessage(downloadURL))
+                        setloading(false)
+                    })
+            }
+            )
+        } catch (error) {
+            alert(error)
+        }
+    }
+
     return (
         <div>
             <Form onSubmit={handleSubmit}>
@@ -70,8 +115,10 @@ function MessageForm() {
                     as="textarea" rows={3} />
                 </Form.Group>
             </Form>
-
-            <ProgressBar variant="warning" label="60%" now={60} />
+            {
+                !(percentage === 0 || percentage === 100)&&
+                <ProgressBar variant="warning" label={`${percentage}%`} now={60} />
+            }
 
             <div>
                 {errors.map(errorMsg => <p style={{color:"red"}} key={errorMsg}>{errorMsg}</p>)}
@@ -82,18 +129,28 @@ function MessageForm() {
                     <button 
                     onClick={handleSubmit}
                     className="message-form-button"
+                    disabled={loading ? true : false}
                     style={{width:'100%'}}>
                         SEND
                     </button>
                 </Col>
                 <Col>
                     <button 
+                    onClick={handleOpenImgaeRef}
                     className="message-form-button"
+                    disabled={loading ? true : false}
                     style={{width:'100%'}}>
                         UPLOAD
                     </button>
                 </Col>
             </Row>
+
+            <input 
+            accept="image/jpeg,image/png"
+            ref={inputOpenImageRef}
+            style={{display:"none"}}
+            onChange={handleUploadImage}
+            type="file" />
         </div>
     )
 }
