@@ -78,7 +78,11 @@ export class DiretMessages extends Component {
                 </span>
 
                 <ul style={{ listStyleType:'none', padding: 0}}>
-                    {this.renderDirectMessages(users)}
+                    
+                {this.props.user &&
+                this.renderDirectMessages(users)}
+
+                    
                 </ul>
             </div>
         )

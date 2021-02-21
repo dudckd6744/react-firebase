@@ -33,7 +33,7 @@ function RegisterPage() {
 
             await firebase.database().ref("users").child(createdUser.user.uid).set({
                 name: createdUser.user.displayName,
-                image: createdUser.user.ph
+                image: createdUser.user.photoURL
             })
 
 
