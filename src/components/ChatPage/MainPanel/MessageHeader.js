@@ -1,9 +1,9 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Container from "react-bootstrap/Container"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
 import {FaLock, FaLockOpen} from "react-icons/fa"
-import {MdFavorite} from "react-icons/md"
+import {MdFavorite, MdFavoriteBorder} from "react-icons/md"
 import {AiOutlineSearch} from "react-icons/ai"
 import InputGroup from "react-bootstrap/InputGroup"
 import FormControl from "react-bootstrap/FormControl"
@@ -12,11 +12,63 @@ import Accordion from "react-bootstrap/Accordion"
 import Card from "react-bootstrap/Card"
 import Button from "react-bootstrap/Button"
 import {useSelector} from "react-redux";
+import firebase from "../../../firebase";
 
 function MessageHeader({handleSearchChange}) {
 
     const chatRoom = useSelector(state => state.chatRoom.currentChatRoom)
     const IsPrivateChatRoom = useSelector(state => state.chatRoom.IsPrivateChatRoom)
+    const [isFavorited, setisFavorited] = useState(false)
+    const userRef = firebase.database().ref("users");
+    const user = useSelector(state => state.user.currentUser)
+
+    useEffect(() => {
+        if(chatRoom && user){
+            addFavoriteListner(chatRoom.id,user.uid)        
+        }
+
+    }, [])
+
+    const addFavoriteListner=(chatRoomId,userId)=>{
+        userRef
+            .child(userId)
+            .child("favorited")
+            .once("value")
+            .then(data => {
+                if(data.val() !== null){
+                    const chatRoomIds = Object.keys(data.val());
+                    const isAlreadyFavorited = chatRoomIds.includes(chatRoomId)
+                    setisFavorited(isAlreadyFavorited)
+                }
+            })
+    }
+
+    const handleFavorite =()=>{
+        if(isFavorited){
+            userRef
+                .child(`${user.uid}/favorited`)
+                .child(chatRoom.id)
+                .remove(err =>{
+                    if(err !== null){
+                        console.error(err);
+                    }
+                })
+                setisFavorited(prev => !prev)
+        }else{
+            userRef
+            .child(`${user.uid}/favorited`).update({
+                [chatRoom.id]: {
+                    name:chatRoom.name,
+                    description: chatRoom.description,
+                    createdBy:{
+                        name: chatRoom.createdBy.name,
+                        image:chatRoom.createdBy.image
+                    }
+                }
+            })
+            setisFavorited(prev => !prev)
+        }
+    }
     
     return (
         <div style={{
@@ -36,7 +88,19 @@ function MessageHeader({handleSearchChange}) {
                             <FaLockOpen style={{marginBottom:'10px'}}/>
                         }
                     {chatRoom && chatRoom.name}
-                    <MdFavorite/></h2></Col>
+                    {!IsPrivateChatRoom &&
+                    <span style={{ cursor:"pointer"}} onClick={handleFavorite}>
+                        {isFavorited ?
+                            <MdFavorite style={{marginBottom:'10px'}}/>
+                            :
+                            <MdFavoriteBorder style={{marginBottom:'10px'}}/>
+                    }
+                    </span>
+
+                    }
+                    </h2></Col>
+
+
                     <Col>
                     <InputGroup className="mb-3">
                         <InputGroup.Prepend>
