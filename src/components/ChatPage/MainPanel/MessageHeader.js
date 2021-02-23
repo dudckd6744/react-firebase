@@ -13,9 +13,11 @@ import Card from "react-bootstrap/Card"
 import Button from "react-bootstrap/Button"
 import {useSelector} from "react-redux";
 import firebase from "../../../firebase";
+import { Media } from 'react-bootstrap'
 
 function MessageHeader({handleSearchChange}) {
 
+    const userPosts = useSelector(state => state.chatRoom.userPosts)
     const chatRoom = useSelector(state => state.chatRoom.currentChatRoom)
     const IsPrivateChatRoom = useSelector(state => state.chatRoom.IsPrivateChatRoom)
     const [isFavorited, setisFavorited] = useState(false)
@@ -69,6 +71,30 @@ function MessageHeader({handleSearchChange}) {
             setisFavorited(prev => !prev)
         }
     }
+
+    const renderUserPosts =(userPosts)=>
+        Object.entries(userPosts)
+        .sort((a,b)=> b[1].count - a[1].count)
+        .map(([key,val], i)=>(
+            <Media key={i}>
+                <img 
+                    style={{ borderRadius:25}}
+                    width={48}
+                    height={48}
+                    className="mr-3"
+                    src={val.image}
+                    alt={val.name}
+                />
+                <Media.Body>
+                    <h6>{key}</h6>
+                    <p>
+                        {val.count} 개
+                    </p>
+                </Media.Body>
+            </Media>
+        ))
+
+
     
     return (
         <div style={{
@@ -117,22 +143,27 @@ function MessageHeader({handleSearchChange}) {
                     </InputGroup>
                     </Col>
                 </Row>
-                <div style={{display:'flex',justifyContent:'flex-end'}}>
-                    <p>
-                        <Image src =""/> {" "} user name
-                    </p>
-                </div>
+                {!IsPrivateChatRoom &&
+                    <div style={{display:'flex',justifyContent:'flex-end'}}>
+                        <p>  
+                            <Image src ={chatRoom && chatRoom.createdBy.image}
+                            roundedCircle style={{width:'30px', height:'30px'}}/>
+                                {" "} {chatRoom && chatRoom.createdBy.name}
+                        </p>
+                    </div>
+                }
+                
                 <Row>
                     <Col>
                     <Accordion >
                         <Card>
                             <Card.Header style={{ padding:'0 1rem'}}>
                             <Accordion.Toggle as={Button} variant="link" eventKey="0">
-                                Click me!
+                                Description
                             </Accordion.Toggle>
                             </Card.Header>
                             <Accordion.Collapse eventKey="0">
-                            <Card.Body>Hello! I'm the body</Card.Body>
+                            <Card.Body>{chatRoom&& chatRoom.description}</Card.Body>
                             </Accordion.Collapse>
                         </Card>
                     </Accordion>
@@ -142,11 +173,15 @@ function MessageHeader({handleSearchChange}) {
                         <Card>
                             <Card.Header style={{ padding:'0 1rem'}}>
                             <Accordion.Toggle as={Button} variant="link" eventKey="0">
-                                Click me!
+                                Posts Count
                             </Accordion.Toggle>
                             </Card.Header>
                             <Accordion.Collapse eventKey="0">
-                            <Card.Body>Hello! I'm the body</Card.Body>
+                            <Card.Body>
+
+                                {userPosts && renderUserPosts(userPosts)}
+
+                            </Card.Body>
                             </Accordion.Collapse>
                         </Card>
                     </Accordion>

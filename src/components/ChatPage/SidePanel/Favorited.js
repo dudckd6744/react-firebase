@@ -2,18 +2,30 @@ import { FaRegSmile } from 'react-icons/fa'
 import React, { Component } from 'react'
 import firebase from "../../../firebase";
 import {connect} from "react-redux";
+import {setCurrentChatRoom,setPrivateChatRoom} from "../../../redux/actions/chatRoom_action"
 
 export class Favorited extends Component {
 
     state={
         usersRef : firebase.database().ref("users"),
-        favoritedChatRoom:[]
+        favoritedChatRoom:[],
+        activeChatRoomId:""
     }
 
     componentDidMount(){
         if(this.props.user){
             this.addListners(this.props.user.uid)
         }
+    }
+
+    componentWillUnmount(){
+        if(this.props.user){
+            this.removeListner(this.props.user.uid);
+        }
+    }
+
+    removeListner =(userId)=>{   
+        this.state.usersRef.child(`${userId}/favorited`).off();
     }
 
     addListners=(userId)=>{
@@ -41,16 +53,27 @@ export class Favorited extends Component {
     })
     }
 
-    renderFavoritedChatRooms=(favoritedChatRoom)=>{
+    changeChatRoom=(room)=>{
+        this.props.dispatch(setCurrentChatRoom(room))
+        this.props.dispatch(setPrivateChatRoom(false))
+        this.setState({activeChatRoomId:room.id})
+    }
+
+    renderFavoritedChatRooms=(favoritedChatRoom)=>
+        // console.log(favoritedChatRoom)
         favoritedChatRoom.length>0 &&
         favoritedChatRoom.map(chatRoom => (
             <li 
                 key={chatRoom.id}
+                onClick={()=>this.changeChatRoom(chatRoom)}
+                style={{
+                    backgroundColor: chatRoom.id === this.state.activeChatRoomId && "#ffffff45"
+                }}
             >
                 # {chatRoom.name}
             </li>
         ))
-    }
+    
 
     render() {
         const {favoritedChatRoom} = this.state
@@ -67,7 +90,7 @@ export class Favorited extends Component {
         )
     }
 }
-
+//즐겨찾기 에 좋아요눌러도 채팅방이 안뜸  
 
 const mapStateToProps = state => {
     return {
